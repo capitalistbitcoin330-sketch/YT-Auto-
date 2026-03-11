@@ -1,0 +1,214 @@
+{
+  "name": "My workflow 5",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "ff929642-101f-455d-8763-300dcd766316",
+      "name": "Schedule Trigger (9 AM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "prompt": "=\"You are a professional YouTube Shorts Automation Expert and Scriptwriter for a viral Indian YouTube channel. Your goal is to create content in the style of 'Halku-ray' or 'Jethalal' cartoons that is engaging, funny, and high-retention.\n\nInstructions:\n\nTopic Research: Focus on funny, relatable, or trending Indian scenarios.\n\nScript Writing: Write a script that is exactly 20-25 seconds long. Use simple, conversational Hindi (written in English script/Hinglish).\n\nRunway Prompt: Create a highly descriptive visual prompt for Runway Gen-2. Focus on cinematic lighting, 3D cartoon style, and expressive character faces.\n\nElevenLabs Text: Provide the exact text to be spoken, including pauses (marked as [pause]) for better AI narration.\n\nOutput Format (Strict JSON):\nReturn ONLY a JSON object with these keys:\n\n'title': A catchy, clickbaity title (under 60 chars).\n\n'description': A brief description with hashtags.\n\n'elevenlabs_text': The final script for voiceover.\n\n'runway_prompt': The visual description for video generation.\n\n'tags': 5 trending hashtags.\"",
+        "options": {},
+        "requestOptions": {}
+      },
+      "id": "5f4dc562-3575-403c-8da3-837224ec39a5",
+      "name": "OpenAI: Script Writer",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        -160
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "hBOdPv0f8RDpOhcc",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.runwayml.com/v1/generations",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "promptText",
+              "value": "={{ $('OpenAI: Script Writer').item.json.choices[0].message.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3c3e1aa7-b5ce-4ceb-9f2d-060190100dfb",
+      "name": "Runway API: Video Gen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        336,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "filters": {},
+        "options": {}
+      },
+      "id": "478f5806-16b4-4d72-ad77-ec67729d4c51",
+      "name": "YouTube: Upload",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        800,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "subject": "Automation Update",
+        "emailType": "text",
+        "message": "Sir, your video has been uploaded successfully!",
+        "options": {}
+      },
+      "id": "9c34e397-cca6-4627-aee4-a67a0e03364c",
+      "name": "Gmail: Notification",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1056,
+        -160
+      ],
+      "webhookId": "6a2c56c7-c776-4368-b05f-37103e9ed3d2"
+    },
+    {
+      "parameters": {
+        "voice": {
+          "__rl": true,
+          "mode": "list",
+          "value": null
+        },
+        "requestOptions": {}
+      },
+      "type": "@elevenlabs/n8n-nodes-elevenlabs.elevenLabs",
+      "typeVersion": 1,
+      "position": [
+        112,
+        -160
+      ],
+      "id": "e8af8b11-67db-483b-b404-e617180b99c2",
+      "name": "Get a voice"
+    },
+    {
+      "parameters": {
+        "language": "pythonNative",
+        "pythonCode": "import json\n\n# n8n automatically passes data in the 'items' list\nresults = []\n\nfor item in items:\n    # 1. Script fetch kar rahe hain jo OpenAI ne banayi thi\n    # Note: 'OpenAI: Script Writer' aapke node ka exact naam hona chahiye\n    raw_script = item.json.get(\"choices\", [{}])[0].get(\"message\", {}).get(\"content\", \"\")\n    \n    # 2. Metadata generate karna\n    # Title: Script ki pehli line (limited to 60 chars for Shorts)\n    title = raw_script.split('\\n')[0][:60] if raw_script else \"AI Viral Short\"\n    \n    # Tags: Kuch default tags + script se words\n    tags = [\"#shorts\", \"#trending\", \"#AI\", \"#HalkuRay\", \"#animation\"]\n    \n    # 3. Description taiyar karna\n    description = f\"{title}\\n\\nThis video is fully AI generated using n8n, OpenAI, and Runway.\\n\\n{raw_script[:200]}...\"\n    \n    # 4. Final output format for YouTube node\n    results.append({\n        \"json\": {\n            \"formatted_title\": title,\n            \"formatted_description\": description,\n            \"formatted_tags\": \", \".join(tags),\n            \"video_url\": item.json.get(\"url\") # Runway se aaya hua video link\n        }\n    })\n\nreturn results"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        -160
+      ],
+      "id": "26382b4f-14ac-4dcd-aac7-2f20ea73ac5a",
+      "name": "Code in Python"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger (9 AM)": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Script Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Script Writer": {
+      "main": [
+        [
+          {
+            "node": "Get a voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a voice": {
+      "main": [
+        [
+          {
+            "node": "Runway API: Video Gen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Runway API: Video Gen": {
+      "main": [
+        [
+          {
+            "node": "Code in Python",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube: Upload": {
+      "main": [
+        [
+          {
+            "node": "Gmail: Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in Python": {
+      "main": [
+        [
+          {
+            "node": "YouTube: Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "23275b54-a5c4-465f-8e7d-0b295018d338",
+  "meta": {
+    "instanceId": "0eec9269c0ca1d88ac211c22b123c31550ed63bfeb38da6e7cddbbf96d745b89"
+  },
+  "id": "MBkaeX-EsuG6XFMUbg7HP",
+  "tags": []
+}
